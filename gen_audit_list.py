@@ -2,43 +2,8 @@ import os
 import win32com.client
 import docx
 import re
-
-
-def doc2docx(ori_path_abs, conv_path_abs):
-    word = win32com.client.Dispatch('Word.application')
-    doc = word.Documents.Open(ori_path_abs)
-    doc.SaveAs2(conv_path_abs, FileFormat=16)
-    doc.Close()
-
-
-class DocProc:
-    def __init__(self, filename):
-        self.doc = docx.Document(filename)
-    
-    def get_text(self):
-        for para in self.doc.paragraphs:
-            num = self.get_report_num(para.text)
-            print(num)
-        #print(len(self.doc.paragraphs))
-        #print(self.doc.paragraphs[21].text)
-        #print(self.doc.paragraphs[21]._element.xml)
-        #print(self.doc.paragraphs[19].text)
-        #print(self.doc.paragraphs[19]._element.xml)
-    
-    def get_report_num(self, text):
-        num = re.search('鲁海会济审字.*$', text)
-        if num:
-            return num.group()
-        else:
-            return None
-    
-    def get_report_time(self, para):
-        print(para._element.xml)
-    
-    def get_company_name(self, text):
-        print(para._element.xml)
-
-        
+import pandas as pd
+import xml.etree.ElementTree as et
 
 
 def conv_doc2docx(filename):
@@ -67,16 +32,92 @@ def conv_doc2docx(filename):
         doc = word.Documents.Open(ori_path_abs)
         doc.SaveAs2(conv_path_abs, FileFormat=16)
         doc.Close()
+        return filename_conv
     except Exception as e:
         print(f'Fail to convert:{filename}')
         print(e)
 
 
+class DocProc:
+    def __init__(self, note_fname, report_fname):
+        self.note_doc = docx.Document(note_fname)
+        self.report_doc = docx.Document(report_fname)
+        
+    
+    def get_note_text(self):
+        for para in self.note_doc.paragraphs:
+            num = self.get_report_num(para.text)
+            company_name = self.get_company_name(para.text)
+            print(num)
+        #print(len(self.doc.paragraphs))
+        #print(self.doc.paragraphs[21].text)
+        #print(self.doc.paragraphs[21]._element.xml)
+        #print(self.doc.paragraphs[19].text)
+        #print(self.doc.paragraphs[19]._element.xml)
+    
+    def get_report_text(self):
+        count = 0
+        report_num = ""
+        report_time = ""
+        for para in self.report_doc.paragraphs:
+            num = self.get_report_num(para.text)
+            time = self.get_report_time(para)
+            if num:
+                report_num = num
+                count += 1
+            if time:
+                report_time = time
+                count += 1
+
+            if count == 2:
+                break
+
+        return report_num, report_time
+
+    
+    def get_report_num(self, text):
+        report_num = re.search('鲁海会济审字.*$', text)
+        if report_num:
+            return report_num.group()
+        else:
+            return None
+    
+    def get_report_time(self, para):
+        #print(para._element.xml)
+        xml_data = para._element.xml
+        parser = et.parse(xml_data)
+        root = parser.getroot()
+        print(root)
+        return "test"
+    
+    def get_company_name(self, text):
+        company_name = re.search('^.*公司$', text)
+        if company_name:
+            return company_name.group()
+        else:
+            return None
+    
+    def get_company_license(self, text):
+        license = re.search('鲁海会济审字.*$', text)
+        if license:
+            return license.group()
+        else:
+            return None
+
+
 if __name__ == '__main__':
+    line_dict = {
+        "license": "",
+        "company_name": "",
+        "report_time": "",
+        "report_num": ""
+    }
     basedir = 'F:/海天会计事务所/2017年度审计报告/济宁华都房地产开发有限公司/'
-    #filename = basedir + '审计报告.doc'
-    #conv_doc2docx(filename)
-    filename2 = basedir + '审计报告.docx'
-    doc_proc = DocProc(filename2)
-    doc_proc.get_text()
+    report_fname = basedir + '审计报告.doc'
+    note_fname = basedir + '会计报表附注.doc'
+    new_report_fname = conv_doc2docx(report_fname)
+    new_note_fname = conv_doc2docx(report_fname)
+    data_proc = DocProc(new_note_fname, new_report_fname)
+    data_proc.get_report_text()
+
 
